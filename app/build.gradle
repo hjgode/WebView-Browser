@@ -6,7 +6,7 @@ android {
 
     defaultConfig {
         applicationId "com.html5test.webview"
-        minSdkVersion 15
+        minSdkVersion 24
         targetSdkVersion 21
     }
 

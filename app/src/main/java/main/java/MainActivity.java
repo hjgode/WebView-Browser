@@ -2,45 +2,54 @@ package main.java;
 
 import android.app.Activity;
 import android.content.Context;
-import android.content.Intent;
 import android.graphics.Bitmap;
 import android.os.Build;
 import android.os.Bundle;
-import android.view.KeyEvent;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.webkit.WebChromeClient;
+import android.webkit.WebResourceError;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.EditText;
 import android.widget.ImageButton;
-import android.widget.TextView;
+
 import com.html5test.webview.R;
 
 
 public class MainActivity extends Activity {
   private long pageStartTime = 0;
-  private WebView wv;
+  private WebView webView;
   private ImageButton goBtn;
-  private EditText et;
+  private EditText editTextURL;
+  private static String TAG="WEBVIEW-BROWSER";
 
   @Override
   public void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.main);
 
-    wv = (WebView) findViewById(R.id.wv);
+    LOG("onCreate()...");
+
+    webView = (WebView) findViewById(R.id.wv);
     goBtn = (ImageButton) findViewById(R.id.go);
-    et = (EditText) findViewById(R.id.et);
+    editTextURL = (EditText) findViewById(R.id.et);
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
       WebView.setWebContentsDebuggingEnabled(true);
+      LOG("debug enabled");
     }
-    wv.setWebChromeClient(new WebChromeClient());
 
-    WebSettings settings = wv.getSettings();
+//    webView.setWebViewClient(new WebViewClient());
+    //EnterpriseBrowser also uses a WebChromeClient
+    webView.setWebChromeClient(new WebChromeClient());
+
+    WebSettings settings = webView.getSettings();
     settings.setJavaScriptEnabled(true);
     settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
     settings.setAppCacheEnabled(false);
@@ -50,16 +59,47 @@ public class MainActivity extends Activity {
     if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
       settings.setAllowUniversalAccessFromFileURLs(true);
     }
+    LOG("Settings: "+settings.getUserAgentString());
 
-    wv.setWebViewClient(new WebViewClient() {
+    webView.setWebViewClient(new WebViewClient() {
       @Override
       public void onPageStarted(WebView view, String url, Bitmap favicon) {
+        LOG("WebViewClient onPageStarted: "+url);
         super.onPageStarted(view, url, favicon);
-        et.setText(url);
+        editTextURL.setText(url);
+      }
+
+      @Override
+      public void onPageFinished(WebView view, String url){
+        LOG("onPageFinished: "+url);
+      }
+      @Override
+      public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error){
+        LOG("onReceivedError: "+request.getUrl() +", " +request.getMethod() +", error="+error.getDescription().toString());
+
+      }
+      @Override
+      public void onReceivedHttpError(WebView view, WebResourceRequest request, WebResourceResponse errorResponse){
+        LOG("onReceivedHttpError: "+request.toString()+", error="+errorResponse.toString());
+
+      }
+      @Override
+      public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request){
+        LOG("shouldInterceptRequest: "+request.getMethod()+", "+request.getUrl()+", " +request.getRequestHeaders().toString());
+        return super.shouldInterceptRequest(view, request);
+      }
+
+      @Override
+      public void onLoadResource(WebView view, String url){
+        LOG("onLoadResource: "+url);
+
       }
     });
 
-    wv.loadUrl("https://html5test.com");
+
+
+    LOG("loadUrl https://html5test.com");
+    webView.loadUrl("https://html5test.com");
 
     // setup events
     goBtn.setOnTouchListener(new View.OnTouchListener() {
@@ -83,7 +123,7 @@ public class MainActivity extends Activity {
       }
     });
 
-    et.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+    editTextURL.setOnFocusChangeListener(new View.OnFocusChangeListener() {
       @Override
       public void onFocusChange(View v, boolean hasFocus) {
         if (!hasFocus) {
@@ -95,26 +135,31 @@ public class MainActivity extends Activity {
 
   @Override
   public void onBackPressed() {
-      if (wv.canGoBack() == true) {
-          wv.goBack();
+      if (webView.canGoBack() == true) {
+          webView.goBack();
       } else {
           MainActivity.super.onBackPressed();
       }
   }
 
   private void handleLoadUrl(boolean forceReload) {
+    LOG("handleLoadURL");
     InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-    imm.hideSoftInputFromWindow(et.getWindowToken(), 0);
+    imm.hideSoftInputFromWindow(editTextURL.getWindowToken(), 0);
 
-    String url = et.getText().toString();
+    String url = editTextURL.getText().toString();
     if (url.startsWith("http://")) {
     } else if (url.startsWith("https://")) {
-    } else {
-      url = String.format("http://%s", url);
-    }
+      } else {
+        url = String.format("http://%s", url);
+      }
 
-    if (!url.equals(wv.getUrl()) || forceReload) {
-      wv.loadUrl(url);
+    if (!url.equals(webView.getUrl()) || forceReload) {
+      LOG("loadURL: "+url);
+      webView.loadUrl(url);
     }
+  }
+  private void LOG(String msg){
+      Log.d(TAG, msg);
   }
 }
